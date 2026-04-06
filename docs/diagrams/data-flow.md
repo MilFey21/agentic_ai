@@ -141,12 +141,6 @@ flowchart LR
     ABS -->|Результат оценки| WBE
     WBE -->|Render evaluation UI| WFE
     WFE -->|Оценка + обратная связь| STU
-
-    INS([Преподаватель]):::term
-    INS -->|GET /evaluations/{id}| RAPI[FastAPI REST API]:::svc
-    RAPI -->|SELECT evaluation| PG
-    PG -->|Данные оценивания| RAPI
-    RAPI -->|Детальный результат| INS
 ```
 
 ### Что хранится при сдаче задания

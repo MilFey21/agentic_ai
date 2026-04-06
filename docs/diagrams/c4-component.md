@@ -3,82 +3,64 @@
 Диаграмма раскрывает компоненты внутри **Tutor Agent** и **Evaluator Agent** — ядра мультиагентной системы. Именно здесь сосредоточена вся LLM-логика, SCH-иерархия, retrieval-контур и механизмы защиты.
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#EFF6FF", "primaryBorderColor": "#3B82F6", "primaryTextColor": "#1E3A5F", "lineColor": "#64748B", "secondaryColor": "#F0FDF4", "tertiaryColor": "#FFFBEB"}}}%%
-C4Component
-    title C4 Component: Ядро мультиагентной системы (Tutor Agent + Evaluator Agent)
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#EFF6FF", "primaryBorderColor": "#3B82F6", "primaryTextColor": "#1E3A5F", "lineColor": "#64748B", "secondaryColor": "#F0FDF4", "tertiaryColor": "#FFFBEB"}, "flowchart": {"curve": "basis", "diagramPadding": 20}}}%%
+flowchart LR
+    classDef consumer fill:#DBEAFE,stroke:#2563EB,color:#1E3A5F
+    classDef state    fill:#EEF2FF,stroke:#6366F1,color:#312E81
+    classDef llm      fill:#DCFCE7,stroke:#16A34A,color:#14532D
+    classDef guard    fill:#FEF9C3,stroke:#CA8A04,color:#713F12
+    classDef pub      fill:#F3E8FF,stroke:#9333EA,color:#3B0764
+    classDef err      fill:#FEE2E2,stroke:#DC2626,color:#7F1D1D
+    classDef ext      fill:#F1F5F9,stroke:#64748B,color:#0F172A
 
-    Container_Ext(redis, "Redis", "Брокер событий + KV state")
-    Container_Ext(anthropic, "Anthropic Claude API", "Claude 3.5 Sonnet")
-    Container_Ext(theory_retriever, "TheoryRetriever", "Keyword-search по MD-индексу")
-    Container_Ext(prog_validator, "Programmatic Validator", "Детерминированная проверка атаки")
-    Container_Ext(postgres, "PostgreSQL", "Хранилище оценок")
+    REDIS[(Redis\nStreams + KV)]:::ext
+    AAPI[Anthropic\nClaude API]:::ext
+    TR[TheoryRetriever\nKeyword-search]:::ext
+    PG[(PostgreSQL)]:::ext
 
-    Container_Boundary(tutor_boundary, "Tutor Agent") {
+    subgraph TUTOR["  Tutor Agent  "]
+        direction TB
+        T_EC[StreamConsumer\nFastStream]:::consumer
+        T_SM[SessionManager\nRedis KV, TTL 24ч]:::state
+        T_SC[StageClassifier\nT=0.1, 5 реплик]:::llm
+        T_CB[CircuitBreaker\n3 ошибки / 60 с]:::err
+        T_SPB[SCHPromptBuilder\nP1 · P2 · P3 + контекст]:::llm
+        T_LC[LLMCaller\nT=0.7, max_tokens=512]:::llm
+        T_PP[PostProcessor\nguardrails · retry ×3]:::guard
+        T_SCR[SCRTracker\nSCR < 85% → alert]:::guard
+        T_SP[StreamPublisher\ntutor.response]:::pub
 
-        Component(event_consumer, "StreamConsumer", "FastStream consumer", "Consume student.message, validation.result; маршрутизация событий внутрь агента")
+        T_EC --> T_SM & T_SC & T_SPB
+        T_SC & T_LC --> T_CB
+        T_SPB --> T_LC
+        T_LC --> T_PP
+        T_PP --> T_SCR & T_SP
+    end
 
-        Component(session_manager, "SessionManager", "Python / Redis client", "R/W TutorSessionState в Redis KV (TTL 24ч); идемпотентность при повторной доставке")
+    subgraph EVAL["  Evaluator Agent  "]
+        direction TB
+        E_EC[StreamConsumer\nFastStream, 30 с задержка]:::consumer
+        E_RL[RubricLoader\n5-компонентная рубрика]:::state
+        E_LA[LLMAnalyzer\nT=0.3, JSON]:::llm
+        E_PV[PydanticValidator\nretry ×2 · partial result]:::guard
+        E_SP[StreamPublisher\nevaluation.result + INSERT]:::pub
 
-        Component(stage_classifier, "StageClassifier", "Claude 3.5 Sonnet T=0.1", "ORIENTATION→SOLVED по последним 5 репликам; T=0.1 для детерминизма")
+        E_EC --> E_RL --> E_LA --> E_PV --> E_SP
+    end
 
-        Component(sch_prompt_builder, "SCHPromptBuilder", "Python", "SCH-промпт: P1 запреты → P2 педагогика → P3 исключения; вставляет theory_context")
+    REDIS -->|student.message\nvalidation.result| T_EC
+    REDIS -->|task.submitted| E_EC
+    T_SM <-->|GET/SET state| REDIS
+    E_RL -->|GET rubric| REDIS
+    T_SP -->|XADD tutor.response| REDIS
+    E_SP -->|XADD evaluation.result| REDIS
 
-        Component(llm_caller_tutor, "LLMCaller", "Anthropic SDK", "Claude 3.5 Sonnet T=0.7, max_tokens=512; промпт + история диалога")
+    T_SC & T_LC -->|messages.create| AAPI
+    E_LA -->|messages.create| AAPI
 
-        Component(post_processor, "PostProcessor", "Python", "Guardrails: '?' в ответе, SCH P1, длина ≤ 512. Retry ×3 → neutral fallback")
+    T_SPB -->|search(query)| TR
 
-        Component(circuit_breaker, "CircuitBreaker", "Python", "3 ошибки / 60 с → аварийный режим; статичный ответ; авто-восстановление")
-
-        Component(scr_tracker, "SCRTracker", "Python / OTel", "SCR = доля ответов с '?' за скользящий час; алерт при SCR < 85%")
-
-        Component(event_publisher_tutor, "StreamPublisher", "FastStream publisher", "Публикует tutor.response в Redis Streams")
-    }
-
-    Container_Boundary(evaluator_boundary, "Evaluator Agent") {
-
-        Component(eval_consumer, "StreamConsumer", "FastStream consumer", "Consume task.submitted; задержка 30 с для записи всех попыток")
-
-        Component(rubric_loader, "RubricLoader", "Python", "GET task:{task_id}:rubric из Redis; 5-компонентная схема оценивания")
-
-        Component(llm_analyzer, "LLMAnalyzer", "Claude 3.5 Sonnet T=0.3", "Анализ: solution + attempts + rubric → JSON с оценками per критерий")
-
-        Component(pydantic_validator, "PydanticValidator", "Pydantic v2", "Валидация EvaluationResult; retry ×2; partial result + алерт при исчерпании")
-
-        Component(eval_publisher, "StreamPublisher", "FastStream publisher", "Публикует evaluation.result в Redis Streams; INSERT в PostgreSQL")
-    }
-
-    Rel(event_consumer, redis, "XREADGROUP student.message / validation.result", "Redis Streams")
-    Rel(event_consumer, session_manager, "Загрузить / обновить состояние сессии")
-    Rel(event_consumer, stage_classifier, "Передать последние 5 реплик для классификации")
-    Rel(event_consumer, sch_prompt_builder, "Запустить сборку промпта")
-
-    Rel(session_manager, redis, "GET/SET tutor:session:{id}:history", "Redis KV")
-    Rel(stage_classifier, anthropic, "classify(history) → stage", "HTTPS")
-    Rel(sch_prompt_builder, theory_retriever, "search(query) → theory_context", "In-process")
-    Rel(sch_prompt_builder, llm_caller_tutor, "Передать собранный промпт")
-
-    Rel(llm_caller_tutor, anthropic, "messages.create(T=0.7, max_tokens=512)", "HTTPS")
-    Rel(llm_caller_tutor, circuit_breaker, "Зарегистрировать успех / ошибку")
-    Rel(llm_caller_tutor, post_processor, "Передать ответ на постпроцессинг")
-
-    Rel(post_processor, llm_caller_tutor, "Retry при нарушении SCH (до 3 попыток)")
-    Rel(post_processor, scr_tracker, "Зафиксировать наличие '?' в ответе")
-    Rel(post_processor, event_publisher_tutor, "Передать финальный ответ")
-
-    Rel(event_publisher_tutor, redis, "XADD tutor.response", "Redis Streams")
-
-    Rel(eval_consumer, redis, "XREADGROUP task.submitted", "Redis Streams")
-    Rel(eval_consumer, rubric_loader, "Загрузить рубрику")
-    Rel(rubric_loader, redis, "GET task:{task_id}:rubric", "Redis KV")
-    Rel(eval_consumer, llm_analyzer, "Передать solution + attempts + rubric")
-    Rel(llm_analyzer, anthropic, "messages.create(T=0.3) → JSON", "HTTPS")
-    Rel(llm_analyzer, pydantic_validator, "Передать JSON для валидации")
-    Rel(pydantic_validator, llm_analyzer, "Retry с напоминанием схемы (до 2)")
-    Rel(pydantic_validator, eval_publisher, "Передать валидный EvaluationResult")
-    Rel(eval_publisher, redis, "XADD evaluation.result", "Redis Streams")
-    Rel(eval_publisher, postgres, "INSERT evaluation", "SQL")
-
-    Rel(prog_validator, redis, "XREADGROUP task.attempt; XADD validation.result", "Redis Streams")
+    E_SP -->|INSERT evaluation| PG
 ```
 
 ## Ключевые компоненты и их роли

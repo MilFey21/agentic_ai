@@ -3,66 +3,62 @@
 Диаграмма раскрывает внутреннее устройство мультиагентной системы: контейнеры, их технологии и способы взаимодействия.
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#EFF6FF", "primaryBorderColor": "#3B82F6", "primaryTextColor": "#1E3A5F", "lineColor": "#64748B", "secondaryColor": "#F0FDF4", "tertiaryColor": "#FFFBEB"}}}%%
-C4Container
-    title C4 Container: Мультиагентная система поддержки обучения Windchaser
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#EFF6FF", "primaryBorderColor": "#3B82F6", "primaryTextColor": "#1E3A5F", "lineColor": "#64748B", "secondaryColor": "#F0FDF4", "tertiaryColor": "#FFFBEB"}, "flowchart": {"curve": "basis", "diagramPadding": 20}}}%%
+flowchart TD
+    classDef fe      fill:#DBEAFE,stroke:#2563EB,color:#1E3A5F
+    classDef agent   fill:#DCFCE7,stroke:#16A34A,color:#14532D
+    classDef storage fill:#EEF2FF,stroke:#6366F1,color:#312E81
+    classDef db      fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
+    classDef kb      fill:#F0FDF4,stroke:#22C55E,color:#166534
+    classDef ext     fill:#FEF9C3,stroke:#CA8A04,color:#713F12
+    classDef mon     fill:#FFF7ED,stroke:#EA580C,color:#7C2D12
+    classDef term    fill:#F1F5F9,stroke:#64748B,color:#0F172A
 
-    Person(student, "Студент", "Задания, диалог с тьютором")
-    Person(instructor, "Преподаватель / Админ", "Мониторинг, управление контентом")
+    STU([Студент]):::term
 
-    System_Ext(anthropic, "Anthropic Claude API", "Claude 3.5 Sonnet — LLM-провайдер")
-    System_Ext(prometheus, "Prometheus + Grafana", "Внешний мониторинг и алерты")
+    subgraph PLAT["Windchaser Platform"]
+        WFE[Windchaser Frontend\nReact / TypeScript]:::fe
+        WBE[Windchaser Backend\nPython / FastAPI]:::fe
+        ABS[AgentBridgeService\nPython / FastStream]:::fe
 
-    System_Boundary(windchaser_sys, "Windchaser Platform") {
+        subgraph CORE["Агентное ядро"]
+            TA[Tutor Agent\nPython / Anthropic SDK]:::agent
+            EA[Evaluator Agent\nPython / Anthropic SDK]:::agent
+            PV[Programmatic Validator\nPython]:::agent
+            TR[TheoryRetriever\nPython]:::agent
+        end
 
-        Container(windchaser_fe, "Windchaser Frontend", "React / TypeScript", "Интерфейс курса: задания, чат с тьютором, оценки")
-        Container(windchaser_be, "Windchaser Backend / LMS", "Python / FastAPI", "Курсы, прогресс, аутентификация, WebSocket-стриминг")
-        Container(agent_bridge, "AgentBridgeService", "Python / FastStream", "Трансляция событий платформы ↔ Redis Streams; жизненный цикл сессий")
+        subgraph STOR["Хранилище"]
+            REDIS[(Redis\nStreams + KV)]:::storage
+            PG[(PostgreSQL\nоценки · прогресс)]:::db
+            MKB[(Markdown KB\n~14 MD-файлов)]:::kb
+        end
 
-        System_Boundary(agent_core, "Мультиагентное ядро") {
-            Container(rest_api, "FastAPI REST API", "Python / FastAPI", "CRUD сессий, статус, результаты оценивания, переиндексация")
-            Container(tutor_agent, "Tutor Agent", "Python / Anthropic SDK", "Сократический тьютор: SCH-промпт, диагностика этапа, направляющие вопросы")
-            Container(evaluator_agent, "Evaluator Agent", "Python / Anthropic SDK", "LLMAnalyzer + Pydantic-валидация; оценка по рубрике")
-            Container(prog_validator, "Programmatic Validator", "Python", "Детерминированная проверка атаки: regex / string match / judge model")
-            Container(theory_retriever, "TheoryRetriever", "Python", "Keyword-search по MD-индексу → theory_context для тьютора")
-        }
+        OTEL[OTel Collector\nтрейсы · SCR · latency]:::mon
+    end
 
-        ContainerDb(redis, "Redis", "Redis Streams + Redis KV", "Брокер событий (Streams) + state-хранилище сессий (KV, TTL 24ч)")
-        ContainerDb(postgres, "PostgreSQL", "PostgreSQL", "Пользователи, результаты оценивания, аналитика прогресса")
-        ContainerDb(markdown_store, "Markdown Knowledge Base", "Файловая система", "~14 MD-файлов теории LLM Security; индексируется TheoryRetriever")
+    AAPI[Anthropic Claude API\nClaude 3.5 Sonnet]:::ext
+    PROM[Prometheus + Grafana]:::mon
 
-        Container(otel_collector, "OpenTelemetry Collector", "OTEL", "Трейсы LLM-вызовов, метрики SCR, latency, стоимость токенов")
-    }
+    STU -->|HTTPS / WebSocket| WFE
+    WFE <-->|API + WebSocket| WBE
+    WBE <-->|события / ответы| ABS
+    ABS <-->|Publish / Consume Streams| REDIS
 
-    Rel(student, windchaser_fe, "Чат, задания, оценки", "HTTPS / WebSocket")
-    Rel(instructor, windchaser_fe, "Аналитика, управление курсом", "HTTPS")
-    Rel(instructor, rest_api, "Переиндексация, статус агентов", "REST")
+    TA <-->|Consume / Publish / R/W state| REDIS
+    EA <-->|Consume / Publish| REDIS
+    PV <-->|Consume / Publish| REDIS
 
-    Rel(windchaser_fe, windchaser_be, "API-запросы, WebSocket", "HTTPS / WS")
-    Rel(windchaser_be, agent_bridge, "События студентов → ответы агентов", "Internal")
-    Rel(agent_bridge, redis, "Publish / Consume Redis Streams", "Redis protocol")
-    Rel(agent_bridge, rest_api, "Создание / завершение сессий", "REST")
+    TA -->|search → theory_context| TR
+    TR -->|индексация при старте| MKB
 
-    Rel(tutor_agent, redis, "Consume student.message; Publish tutor.response; R/W state", "Redis protocol")
-    Rel(tutor_agent, theory_retriever, "search(query) → theory_context", "In-process")
-    Rel(tutor_agent, anthropic, "Генерация / классификация (SCH + history)", "HTTPS")
+    TA & EA -->|LLM-запросы, HTTPS| AAPI
 
-    Rel(evaluator_agent, redis, "Consume task.submitted; Publish evaluation.result", "Redis protocol")
-    Rel(evaluator_agent, anthropic, "LLMAnalyzer: анализ техники атаки", "HTTPS")
-    Rel(evaluator_agent, postgres, "Сохранение результатов оценивания", "SQL")
+    EA -->|INSERT evaluation| PG
+    WBE -->|SQL| PG
 
-    Rel(prog_validator, redis, "Consume task.attempt; Publish validation.result", "Redis protocol")
-
-    Rel(theory_retriever, markdown_store, "Чтение и индексация MD-файлов", "FS read")
-
-    Rel(rest_api, redis, "R/W session state", "Redis protocol")
-    Rel(rest_api, postgres, "Чтение результатов оценивания", "SQL")
-
-    Rel(windchaser_be, postgres, "Пользователи, прогресс, курсы", "SQL")
-
-    Rel(tutor_agent, otel_collector, "Трейсы LLM-вызовов, метрики SCR", "OTEL")
-    Rel(evaluator_agent, otel_collector, "Трейсы LLM-вызовов, latency", "OTEL")
-    Rel(otel_collector, prometheus, "Экспорт метрик и трейсов", "Prometheus / OTLP")
+    TA & EA -->|трейсы + метрики| OTEL
+    OTEL -->|Prometheus / OTLP| PROM
 ```
 
 ## Пояснения к контейнерам
@@ -72,7 +68,6 @@ C4Container
 | **Windchaser Frontend** | React / TypeScript | UI: чат с тьютором, задания, просмотр результатов через WebSocket |
 | **Windchaser Backend** | FastAPI | LMS-логика, аутентификация, WebSocket-стриминг ответов агентов студенту |
 | **AgentBridgeService** | FastStream | Развязка платформы и агентного ядра через Redis Streams |
-| **FastAPI REST API** | FastAPI | Синхронный управляющий слой: CRUD сессий, статус, оценки |
 | **Tutor Agent** | Anthropic SDK | Сократический тьютор; SCH-иерархия, анализ этапа, постпроцессинг |
 | **Evaluator Agent** | Anthropic SDK | Оценщик; LLMAnalyzer + Pydantic-валидация JSON |
 | **Programmatic Validator** | Pure Python | Детерминированный валидатор факта атаки (без LLM) |

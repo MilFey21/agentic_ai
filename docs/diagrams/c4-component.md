@@ -58,7 +58,7 @@ flowchart LR
     T_SC & T_LC -->|messages.create| AAPI
     E_LA -->|messages.create| AAPI
 
-    T_SPB -->|search(query)| TR
+    T_SPB -->|"search(query)"| TR
 
     E_SP -->|INSERT evaluation| PG
 ```

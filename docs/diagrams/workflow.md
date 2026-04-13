@@ -179,6 +179,192 @@ flowchart TD
 
 ---
 
+## 4. UML Sequence — Диалог студента с тьютором
+
+Диаграмма показывает точную последовательность и направление вызовов между компонентами: кто кого ждёт, где есть ветки retry, и как ответ доходит до студента через WebSocket.
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"actorBkg": "#EFF6FF", "actorBorder": "#3B82F6", "actorTextColor": "#1E3A5F", "signalColor": "#64748B", "signalTextColor": "#1E3A5F", "noteBkgColor": "#FFFBEB", "noteTextColor": "#713F12", "labelBoxBkgColor": "#F3E8FF", "labelTextColor": "#3B0764", "loopTextColor": "#3B0764", "activationBorderColor": "#3B82F6", "activationBkgColor": "#DBEAFE"}}}%%
+sequenceDiagram
+    autonumber
+    participant S as Студент
+    participant W as Windchaser
+    participant R as Redis Streams
+    participant TA as Tutor Agent
+    participant AN as Anthropic API
+    participant TR as TheoryRetriever
+    participant PP as PostProcessor
+
+    S->>W: отправить сообщение
+    W->>R: XADD student.message {event_id, session_id, text}
+    R-->>TA: deliver event (consumer group)
+
+    TA->>TA: idempotency check (event_id)
+
+    TA->>R: GET tutor:session:{id}:history
+    R-->>TA: TutorSessionState (history, stage, hint_depth, failed_attempts)
+
+    Note over TA,AN: StageClassifier, классификация этапа, T=0.1
+    TA->>AN: messages.create classify(last 5 turns)
+    AN-->>TA: stage, hint_depth
+
+    TA->>TR: search(last_message_text)
+    alt score > 0
+        TR-->>TA: best matching section (theory_context)
+    else score = 0
+        TR-->>TA: root node темы задания (retrieval fallback)
+    end
+
+    Note over TA: SCHPromptBuilder with theory_context
+    loop retry <= 3
+        TA->>AN: messages.create (T=0.7, max_tokens=512)
+        AN-->>TA: raw response
+        TA->>PP: check(response)
+        alt запрещённый термин найден
+            PP-->>TA: VIOLATION
+        else ответ чистый
+            PP-->>TA: OK
+        end
+    end
+
+    alt все 3 попытки нарушают P1
+        TA->>R: XADD tutor.response {neutral fallback}
+        Note over TA: guardrail_triggered
+    else ответ прошёл P1
+        opt нет вопроса в ответе
+            Note over PP: add follow-up question
+        end
+        opt длина > 512 токенов
+            Note over PP: trim response and keep final question
+        end
+        TA->>R: SET tutor:session:{id}:history TTL 24h
+        TA->>R: XADD tutor.response {session_id, text}
+        TA->>TA: SCR tracking and Grafana alert
+    end
+
+    TA->>R: XACK student.message
+    R-->>W: deliver tutor.response
+    W-->>S: WebSocket push
+```
+
+---
+
+## 5. UML Sequence — Попытка атаки (промпт студента)
+
+Ключевые особенности: Programmatic Validator работает без LLM (или с изолированной judge-моделью); доставка результата — параллельная: студент и Tutor Agent получают событие одновременно.
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"actorBkg": "#EFF6FF", "actorBorder": "#3B82F6", "actorTextColor": "#1E3A5F", "signalColor": "#64748B", "signalTextColor": "#1E3A5F", "noteBkgColor": "#FFFBEB", "noteTextColor": "#713F12", "labelBoxBkgColor": "#F3E8FF", "labelTextColor": "#3B0764", "loopTextColor": "#3B0764", "activationBorderColor": "#3B82F6", "activationBkgColor": "#DBEAFE"}}}%%
+sequenceDiagram
+    autonumber
+    participant S  as Студент
+    participant W  as Windchaser
+    participant R  as Redis Streams
+    participant PV as Programmatic Validator
+    participant JM as Judge Model
+    participant TA as Tutor Agent
+
+    S->>W: отправить промпт-атаку
+    W->>R: XADD task.attempt {event_id, session_id, task_id, payload}
+    R-->>PV: deliver event (consumer group)
+
+    PV->>PV: idempotency check (event_id)
+
+    alt тип проверки: regex / string match
+        Note over PV: детерминированная проверка без LLM-вызова
+        PV->>PV: regex / exact match → {success: bool}
+    else тип проверки: judge model
+        PV->>JM: classify(payload, T=0.0)
+        Note over JM: изолированная модель, без истории сессии
+        JM-->>PV: {success: bool}
+    end
+
+    PV->>R: XADD validation.result {event_id, session_id, success}
+    PV->>R: XACK task.attempt
+
+    par мгновенная обратная связь студенту
+        R-->>W: deliver validation.result
+        W-->>S: результат попытки (успех / неудача)
+    and обновление состояния Tutor Agent
+        R-->>TA: deliver validation.result
+        TA->>R: GET tutor:session:{id}:history
+        R-->>TA: current state (failed_attempts)
+        alt failed_attempts ≥ порог адаптации
+            TA->>R: SET hint_depth=deep, stage=REFINEMENT
+        end
+        TA->>R: XACK validation.result
+    end
+```
+
+---
+
+## 6. UML Sequence — Финальная сдача задания
+
+Evaluator Agent полностью изолирован от истории тьютора. Входные данные — только `dialog_log` из payload события и рубрика из Redis.
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"actorBkg": "#EFF6FF", "actorBorder": "#3B82F6", "actorTextColor": "#1E3A5F", "signalColor": "#64748B", "signalTextColor": "#1E3A5F", "noteBkgColor": "#FFFBEB", "noteTextColor": "#713F12", "labelBoxBkgColor": "#F3E8FF", "labelTextColor": "#3B0764", "loopTextColor": "#3B0764", "activationBorderColor": "#3B82F6", "activationBkgColor": "#DBEAFE"}}}%%
+sequenceDiagram
+    autonumber
+    participant S  as Студент
+    participant W  as Windchaser
+    participant R  as Redis Streams
+    participant EA as Evaluator Agent
+    participant AN as Anthropic API
+    participant PD as Pydantic Validator
+    participant PG as PostgreSQL
+
+    S->>W: нажать "Сдать задание"
+    W->>R: XADD task.submitted {event_id, session_id, task_id, dialog_log, final_solution}
+    R-->>EA: deliver event (consumer group)
+
+    EA->>EA: idempotency check (event_id)
+
+    Note over EA: задержка 30 с — ожидание записи всех попыток в Redis
+
+    EA->>R: GET task:{task_id}:rubric
+    alt рубрика не найдена
+        R-->>EA: nil
+        EA->>R: XADD evaluation.result {status: error}
+        Note over EA: алерт: missing_rubric
+    else рубрика загружена
+        R-->>EA: rubric JSON
+
+        loop retry ≤ 2 (Pydantic enforcement)
+            EA->>AN: messages.create (final_solution + attempt_log + rubric, T=0.3)
+            AN-->>EA: JSON response
+            EA->>PD: validate(response, EvaluationResult schema)
+            alt JSON валиден
+                PD-->>EA: EvaluationResult (оценки по 5 критериям)
+            else JSON невалиден
+                PD-->>EA: ValidationError → retry с напоминанием схемы
+            end
+        end
+
+        alt все retry исчерпаны
+            EA->>R: XADD evaluation.result {status: partial}
+            Note over EA: алерт: pydantic_validation_failed
+        else оценка получена
+            Note over EA: проверка флага от Programmatic Validator (из Redis)
+            alt Programmatic Validator: success = true
+                Note over EA: overall_status = passed
+            else Programmatic Validator: success = false
+                Note over EA: overall_status = failed
+            end
+
+            EA->>PG: INSERT evaluation_records (session_id, status, scores, feedback)
+            PG-->>EA: OK
+            EA->>R: XADD evaluation.result {status, scores, feedback}
+        end
+    end
+
+    EA->>R: XACK task.submitted
+    R-->>W: deliver evaluation.result
+    W-->>S: отобразить результат оценивания
+```
+
+---
+
 ## Сводная таблица failure modes и fallback-путей
 
 | Scenario | Trigger | Fallback | Логирование |

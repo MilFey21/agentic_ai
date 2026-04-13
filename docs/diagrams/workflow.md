@@ -187,9 +187,9 @@ flowchart TD
 %%{init: {"theme": "base", "themeVariables": {"actorBkg": "#EFF6FF", "actorBorder": "#3B82F6", "actorTextColor": "#1E3A5F", "signalColor": "#64748B", "signalTextColor": "#1E3A5F", "noteBkgColor": "#FFFBEB", "noteTextColor": "#713F12", "labelBoxBkgColor": "#F3E8FF", "labelTextColor": "#3B0764", "loopTextColor": "#3B0764", "activationBorderColor": "#3B82F6", "activationBkgColor": "#DBEAFE"}}}%%
 sequenceDiagram
     autonumber
-    participant S  as Студент
-    participant W  as Windchaser
-    participant R  as Redis Streams
+    participant S as Студент
+    participant W as Windchaser
+    participant R as Redis Streams
     participant TA as Tutor Agent
     participant AN as Anthropic API
     participant TR as TheoryRetriever
@@ -204,9 +204,9 @@ sequenceDiagram
     TA->>R: GET tutor:session:{id}:history
     R-->>TA: TutorSessionState (history, stage, hint_depth, failed_attempts)
 
-    Note over TA,AN: StageClassifier — классификация этапа, T=0.1
-    TA->>AN: messages.create — classify(last 5 turns)
-    AN-->>TA: {stage, hint_depth}
+    Note over TA,AN: StageClassifier, классификация этапа, T=0.1
+    TA->>AN: messages.create classify(last 5 turns)
+    AN-->>TA: stage, hint_depth
 
     TA->>TR: search(last_message_text)
     alt score > 0
@@ -215,14 +215,13 @@ sequenceDiagram
         TR-->>TA: root node темы задания (retrieval fallback)
     end
 
-    Note over TA: SCHPromptBuilder: P1 запреты + P2 педагогика + P3 исключения + theory_context (~1000 токенов)
-
-    loop retry ≤ 3 (SCH P1 enforcement)
+    Note over TA: SCHPromptBuilder with theory_context
+    loop retry <= 3
         TA->>AN: messages.create (T=0.7, max_tokens=512)
         AN-->>TA: raw response
         TA->>PP: check(response)
         alt запрещённый термин найден
-            PP-->>TA: VIOLATION → усилить P1-блок, повторить
+            PP-->>TA: VIOLATION
         else ответ чистый
             PP-->>TA: OK
         end
@@ -230,17 +229,17 @@ sequenceDiagram
 
     alt все 3 попытки нарушают P1
         TA->>R: XADD tutor.response {neutral fallback}
-        Note over TA: лог: guardrail_triggered
+        Note over TA: guardrail_triggered
     else ответ прошёл P1
-        opt нет '?' в ответе
-            Note over PP: добавить уточняющий вопрос, лог: missing_question
+        opt нет вопроса в ответе
+            Note over PP: add follow-up question
         end
         opt длина > 512 токенов
-            Note over PP: усечь, сохранить финальный вопрос
+            Note over PP: trim response and keep final question
         end
-        TA->>R: SET tutor:session:{id}:history (TTL 24 ч)
+        TA->>R: SET tutor:session:{id}:history TTL 24h
         TA->>R: XADD tutor.response {session_id, text}
-        Note over TA: SCRTracker: зафиксировать '?' → SCR; если SCR < 85% → алерт Grafana
+        TA->>TA: SCR tracking and Grafana alert
     end
 
     TA->>R: XACK student.message

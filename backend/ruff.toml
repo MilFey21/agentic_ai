@@ -1,0 +1,103 @@
+line-length = 120
+src = ["src", "."]
+exclude = ["pyproject.toml"]
+target-version = "py313"
+
+[lint]
+select = [
+    "F",   # Pyflakes
+    "E",   # Pycodestyle Error
+    "W",   # PycodeStyle Warning
+    "I",   # Isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "YTT", # flake8-2020
+    "ANN", # flake8-annotations
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "DTZ", # flake8-datetimez
+    "T10", # flake8-debugger
+    "ISC", # flake8-implicit-str-concat
+    "ICN", # flake8-import-conventions
+    "LOG", # flake8-logging
+    "G",   # flake8-logging-format
+    "PIE", # flake8-pie
+    "T20", # flake8-print
+    "PT",  # flake8-pytest-style
+    "PYI", # flake8-pyi
+    "Q",   # flake8-quotes
+    "RSE", # flake8-raise
+    "RET", # flake8-return
+    "SIM", # flake8-simplify
+    "TID", # flake8-tidy-imports
+    "PTH", # flake8-use-pathlib
+    "TD",  # flake8-todos
+    "PGH", # pygrep-hooks
+    "PL",  # Pylint
+    "TRY", # tryceratops
+    "RUF", # Ruff-specific rules
+]
+ignore = [
+    "UP040",   # non-pep695-type-alias
+    "ANN401",  # any-type
+    "B005",    # strip-with-multi-characters
+    "B905",    # zip-without-explicit-strict
+    "N818",    # error-suffix-on-exception-name
+    "ISC001",  # single-line-implicit-string-concatenation
+    "PT011",   # pytest-raises-too-broad
+    "PT019",   # pytest-fixture-param-without-value
+    "PT030",   # pytest-warns-too-broad
+    "Q003",    # avoidable-escaped-quote
+    "SIM108",  # if-else-block-instead-of-if-exp
+    "SIM212",  # if-expr-with-twisted-arms
+    "PTH123",  # builtin-open
+    "TD002",   # missing-todo-author
+    "TD003",   # missing-todo-link
+    "PLR0911", # too-many-return-statements
+    "PLR0912", # too-many-branches
+    "PLR0913", # too-many-arguments
+    "PLR0915", # too-many-statements
+    "PLR2004", # magic-value-comparison
+    "PLW1641", # eq-without-hash
+    "PLW2901", # redefined-loop-name
+    "SIM300",  # yoda-conditions
+    "PGH004",  # blanket-noqa
+    "TRY002",  # raise-vanilla-class
+    "TRY003",  # raise-vanilla-args
+    "RUF001",  # ambiguous-unicode-character-string
+    "RUF002",  # ambiguous-unicode-character-docstring
+    "RUF003",  # ambiguous-unicode-character-comment
+    "RUF005",  # collection-literal-concatenation
+    "RUF006",  # asyncio-dangling-task
+    "RUF012",  # mutable-class-default
+    "RET504",  # unnecessary-assign
+    "B008",    # function-call-in-default-argument (FastAPI Depends() syntax)
+]
+extend-safe-fixes = [
+    "ANN",    # flake8-annotations
+    "ICN",    # flake8-import-conventions
+    "PT",     # flake8-pytest-style
+    "TID252", # relative-imports
+    "RUF032", # decimal-from-float-literal
+]
+
+[lint.per-file-ignores]
+"__init__.py" = [
+    "F401", # unused-import
+]
+"tests*/**/*.py" = [
+    "N",     # pep8-naming
+    "UP026", # deprecated-mock-import
+    "ANN",   # flake8-annotations
+]
+
+[lint.flake8-quotes]
+inline-quotes = "single"
+
+[lint.isort]
+combine-as-imports = true
+lines-after-imports = 2
+no-lines-before = ["local-folder"]
+
+[format]
+quote-style = "single"

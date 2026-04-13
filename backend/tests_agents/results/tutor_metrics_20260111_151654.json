@@ -1,0 +1,261 @@
+{
+  "timestamp": "20260111_151654",
+  "agent": "TutorAgent",
+  "aggregated_metrics": {
+    "total_cases": 10,
+    "stage_accuracy": 0.3,
+    "tool_selection_accuracy": 0.9,
+    "guiding_questions_usage_accuracy": 0.6,
+    "theory_usage_rate": 1.0,
+    "stage_confusion_matrix": {
+      "initial": {
+        "initial": 3
+      },
+      "developing": {
+        "initial": 4
+      },
+      " но не получаю полный системный промпт. Что делать?": {
+        "initial": 1
+      },
+      "reviewing": {
+        "initial": 2
+      }
+    },
+    "tool_usage_stats": {
+      "analyze_student_stage": 10,
+      "provide_theory_context": 13,
+      "retrieve_theory": 19,
+      "help_system_prompt_extraction": 1,
+      "ask_guiding_question": 4
+    },
+    "tool_selection_errors_count": 1
+  },
+  "individual_results": [
+    {
+      "question_id": 1,
+      "assignment_type": "system_prompt_extraction",
+      "stage_correct": true,
+      "tools_correct": true,
+      "guiding_question_correct": true,
+      "theory_used": true,
+      "predicted_stage": "initial",
+      "expected_stage": "initial",
+      "tools_used": [
+        "analyze_student_stage",
+        "provide_theory_context",
+        "retrieve_theory",
+        "provide_theory_context",
+        "retrieve_theory",
+        "retrieve_theory"
+      ],
+      "expected_tools": [
+        "provide_theory_context",
+        "help_system_prompt_extraction"
+      ],
+      "used_guiding_question": false,
+      "expected_guiding_question": false
+    },
+    {
+      "question_id": 2,
+      "assignment_type": "system_prompt_extraction",
+      "stage_correct": true,
+      "tools_correct": true,
+      "guiding_question_correct": false,
+      "theory_used": true,
+      "predicted_stage": "initial",
+      "expected_stage": "initial",
+      "tools_used": [
+        "analyze_student_stage",
+        "retrieve_theory",
+        "provide_theory_context",
+        "help_system_prompt_extraction",
+        "ask_guiding_question"
+      ],
+      "expected_tools": [
+        "provide_theory_context",
+        "help_system_prompt_extraction"
+      ],
+      "used_guiding_question": true,
+      "expected_guiding_question": false
+    },
+    {
+      "question_id": 3,
+      "assignment_type": "system_prompt_extraction",
+      "stage_correct": false,
+      "tools_correct": true,
+      "guiding_question_correct": true,
+      "theory_used": true,
+      "predicted_stage": "initial",
+      "expected_stage": "developing",
+      "tools_used": [
+        "analyze_student_stage",
+        "retrieve_theory"
+      ],
+      "expected_tools": [
+        "analyze_student_stage",
+        "help_system_prompt_extraction"
+      ],
+      "used_guiding_question": false,
+      "expected_guiding_question": false
+    },
+    {
+      "question_id": 4,
+      "assignment_type": "system_prompt_extraction",
+      "stage_correct": false,
+      "tools_correct": true,
+      "guiding_question_correct": false,
+      "theory_used": true,
+      "predicted_stage": "initial",
+      "expected_stage": "developing",
+      "tools_used": [
+        "analyze_student_stage",
+        "provide_theory_context",
+        "retrieve_theory",
+        "provide_theory_context",
+        "ask_guiding_question",
+        "retrieve_theory"
+      ],
+      "expected_tools": [
+        "analyze_student_stage",
+        "help_system_prompt_extraction"
+      ],
+      "used_guiding_question": true,
+      "expected_guiding_question": false
+    },
+    {
+      "question_id": 5,
+      "assignment_type": "system_prompt_extraction",
+      "stage_correct": false,
+      "tools_correct": true,
+      "guiding_question_correct": true,
+      "theory_used": true,
+      "predicted_stage": "initial",
+      "expected_stage": "developing",
+      "tools_used": [
+        "analyze_student_stage",
+        "retrieve_theory",
+        "retrieve_theory",
+        "provide_theory_context",
+        "provide_theory_context"
+      ],
+      "expected_tools": [
+        "analyze_student_stage",
+        "help_system_prompt_extraction"
+      ],
+      "used_guiding_question": false,
+      "expected_guiding_question": false
+    },
+    {
+      "question_id": 6,
+      "assignment_type": "system_prompt_extraction",
+      "stage_correct": false,
+      "tools_correct": false,
+      "guiding_question_correct": true,
+      "theory_used": true,
+      "predicted_stage": "initial",
+      "expected_stage": " но не получаю полный системный промпт. Что делать?",
+      "tools_used": [
+        "analyze_student_stage",
+        "provide_theory_context"
+      ],
+      "expected_tools": [
+        "developing"
+      ],
+      "used_guiding_question": false,
+      "expected_guiding_question": false
+    },
+    {
+      "question_id": 7,
+      "assignment_type": "system_prompt_extraction",
+      "stage_correct": false,
+      "tools_correct": true,
+      "guiding_question_correct": true,
+      "theory_used": true,
+      "predicted_stage": "initial",
+      "expected_stage": "reviewing",
+      "tools_used": [
+        "analyze_student_stage",
+        "retrieve_theory",
+        "provide_theory_context",
+        "retrieve_theory",
+        "retrieve_theory"
+      ],
+      "expected_tools": [
+        "analyze_student_stage",
+        "help_system_prompt_extraction"
+      ],
+      "used_guiding_question": false,
+      "expected_guiding_question": false
+    },
+    {
+      "question_id": 8,
+      "assignment_type": "system_prompt_extraction",
+      "stage_correct": false,
+      "tools_correct": true,
+      "guiding_question_correct": false,
+      "theory_used": true,
+      "predicted_stage": "initial",
+      "expected_stage": "reviewing",
+      "tools_used": [
+        "analyze_student_stage",
+        "retrieve_theory",
+        "provide_theory_context",
+        "ask_guiding_question",
+        "retrieve_theory"
+      ],
+      "expected_tools": [
+        "analyze_student_stage",
+        "help_system_prompt_extraction"
+      ],
+      "used_guiding_question": true,
+      "expected_guiding_question": false
+    },
+    {
+      "question_id": 9,
+      "assignment_type": "system_prompt_extraction",
+      "stage_correct": false,
+      "tools_correct": true,
+      "guiding_question_correct": false,
+      "theory_used": true,
+      "predicted_stage": "initial",
+      "expected_stage": "developing",
+      "tools_used": [
+        "analyze_student_stage",
+        "retrieve_theory",
+        "provide_theory_context",
+        "ask_guiding_question",
+        "retrieve_theory"
+      ],
+      "expected_tools": [
+        "analyze_student_stage",
+        "help_system_prompt_extraction"
+      ],
+      "used_guiding_question": true,
+      "expected_guiding_question": false
+    },
+    {
+      "question_id": 10,
+      "assignment_type": "system_prompt_extraction",
+      "stage_correct": true,
+      "tools_correct": true,
+      "guiding_question_correct": true,
+      "theory_used": true,
+      "predicted_stage": "initial",
+      "expected_stage": "initial",
+      "tools_used": [
+        "analyze_student_stage",
+        "provide_theory_context",
+        "retrieve_theory",
+        "provide_theory_context",
+        "retrieve_theory",
+        "retrieve_theory"
+      ],
+      "expected_tools": [
+        "provide_theory_context",
+        "help_system_prompt_extraction"
+      ],
+      "used_guiding_question": false,
+      "expected_guiding_question": false
+    }
+  ]
+}

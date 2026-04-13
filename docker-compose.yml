@@ -1,0 +1,175 @@
+services:
+  nginx:
+    build: ./nginx
+    image: windchasersecurity/nginx
+    container_name: windchasersecurity-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - windchasersecurity-network
+
+  frontend:
+    build: ./frontend
+    image: windchasersecurity/frontend
+    container_name: windchasersecurity-frontend
+    restart: unless-stopped
+    networks:
+      - windchasersecurity-network
+
+  backend:
+    build: ./backend
+    image: windchasersecurity/backend
+    container_name: windchasersecurity-backend
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - APP_VERSION=${APP_VERSION:-0.1.0}
+      - DATABASE_URL=postgresql+asyncpg://${BACKEND_DB_USER}:${BACKEND_DB_PASSWORD}@postgres:5432/${BACKEND_DB_NAME}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost","http://localhost:80","http://localhost:3000","http://localhost:5173"]}
+      - CORS_HEADERS=${CORS_HEADERS:-["*"]}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-windchasersecurity}
+      - LANGFLOW_API_URL=http://langflow:7860
+      - LANGFLOW_SUPERUSER=${LANGFLOW_SUPERUSER}  # TODO: use another superuser
+      - LANGFLOW_SUPERUSER_PASSWORD=${LANGFLOW_SUPERUSER_PASSWORD}
+      - LANGFLOW_DB_HOST=postgres
+      - LANGFLOW_DB_PORT=5432
+      - LANGFLOW_DB_NAME=${LANGFLOW_DB_NAME}
+      - LANGFLOW_DB_USER=${LANGFLOW_DB_USER}
+      - LANGFLOW_DB_PASSWORD=${LANGFLOW_DB_PASSWORD}
+      # Anthropic API Key
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # OpenAI-compatible LLM Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      # Agent-specific settings (optional, falls back to OPENAI_MODEL)
+      - OPENAI_EVALUATOR_MODEL=${OPENAI_EVALUATOR_MODEL:-}
+      - OPENAI_EVALUATOR_TEMPERATURE=${OPENAI_EVALUATOR_TEMPERATURE:-0.5}
+      - OPENAI_TUTOR_MODEL=${OPENAI_TUTOR_MODEL:-}
+      - OPENAI_TUTOR_TEMPERATURE=${OPENAI_TUTOR_TEMPERATURE:-0.7}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - backend-data:/app/data
+    command: ["sh", "-c", "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000"]
+    networks:
+      - windchasersecurity-network
+
+  langflow:
+    build: ./langflow
+    image: windchasersecurity/langflow
+    container_name: windchasersecurity-langflow
+    restart: unless-stopped
+    pull_policy: always
+    user: root
+    ports:
+      - "7860:7860"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      - LANGFLOW_DATABASE_URL=postgresql://${LANGFLOW_DB_USER}:${LANGFLOW_DB_PASSWORD}@postgres:5432/${LANGFLOW_DB_NAME}
+      - LANGFLOW_CONFIG_DIR=/app/langflow
+      - LANGFLOW_AUTO_LOGIN=False
+      - LANGFLOW_SUPERUSER=${LANGFLOW_SUPERUSER}
+      - LANGFLOW_SUPERUSER_PASSWORD=${LANGFLOW_SUPERUSER_PASSWORD}
+      - LANGFLOW_SECRET_KEY=${LANGFLOW_SECRET_KEY}
+      - LANGFLOW_NEW_USER_IS_ACTIVE=True
+      - LANGFLOW_ENABLE_SUPERUSER_CLI=False
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-windchasersecurity}
+      - OPENAI_API_KEY=${LANGFLOW_OPENAI_API_KEY}
+      - OPENAI_API_KEY2=${LANGFLOW_OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+    volumes:
+      - langflow-data:/app/langflow
+    networks:
+      - windchasersecurity-network
+
+  postgres:
+    image: postgres:16
+    container_name: windchasersecurity-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_ADMIN_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_ADMIN_PASSWORD}
+      - POSTGRES_DB=postgres
+      - BACKEND_DB=${BACKEND_DB_NAME}
+      - BACKEND_USER=${BACKEND_DB_USER}
+      - BACKEND_PASSWORD=${BACKEND_DB_PASSWORD}
+      - LANGFLOW_DB=${LANGFLOW_DB_NAME}
+      - LANGFLOW_USER=${LANGFLOW_DB_USER}
+      - LANGFLOW_PASSWORD=${LANGFLOW_DB_PASSWORD}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_ADMIN_USER}", "-d", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+      start_interval: 5s
+    networks:
+      - windchasersecurity-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: windchasersecurity-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    networks:
+      - windchasersecurity-network
+
+  # minio-console:
+  #   image: minio/mc:latest
+  #   container_name: windchasersecurity-minio-console
+  #   restart: unless-stopped
+  #   entrypoint: /bin/sh
+  #   command: -c "sleep 10 && mc alias set myminio http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY} && mc mb myminio/${MINIO_BUCKET_NAME:-windchasersecurity} || true && tail -f /dev/null"
+  #   depends_on:
+  #     minio:
+  #       condition: service_healthy
+  #   environment:
+  #     - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+  #     - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+  #     - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-windchasersecurity}
+  #   networks:
+  #     - windchasersecurity-network
+
+volumes:
+  postgres:
+  langflow-data:
+  minio-data:
+  backend-data:
+
+networks:
+  windchasersecurity-network:
+    driver: bridge

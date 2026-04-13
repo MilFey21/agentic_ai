@@ -1,0 +1,14 @@
+{
+  "course": {
+    "name": "LLM Security: Взлом и защита языковых моделей",
+    "description": "Практический курс по безопасности LLM, где студенты учатся атаковать и защищать языковые модели",
+    "version": "1.0",
+    "language": "ru",
+    "instructor": "Security Team"
+  },
+  "system_prompts": {
+    "evaluator_base": "file://./prompts/evaluator_system.md",
+    "tutor_base": "file://./prompts/tutor_system.md",
+    "simulator_base": "file://./prompts/simulator_system.md"
+  }
+}

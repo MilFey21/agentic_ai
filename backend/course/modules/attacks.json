@@ -1,0 +1,11 @@
+{
+  "id": "attacks",
+  "title": "1 Ручные атаки на AI-ассистентов",
+  "description": "Модуль посвящен изучению основных техник атак на языковые модели и RAG-системы. Студенты научатся извлекать системные промпты, обходить ограничения безопасности и извлекать конфиденциальную информацию из баз знаний.",
+  "is_active": true,
+  "assignment_ids": [
+    "system_prompt_extraction",
+    "knowledge_base_secret_extraction",
+    "token_limit_bypass"
+  ]
+}

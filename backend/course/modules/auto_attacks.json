@@ -1,0 +1,11 @@
+{
+  "id": "auto_attacks",
+  "title": "2 Автоматизация атак на AI-ассистентов",
+  "description": "Модуль посвящен изучению фреймворков автоматизации атак на языковые модели, студенты научатся проводить атаки с помощью готовых инструментов.",
+  "is_active": true,
+  "assignment_ids": [
+    "system_prompt_extraction",
+    "knowledge_base_secret_extraction",
+    "token_limit_bypass"
+  ]
+}

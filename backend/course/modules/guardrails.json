@@ -1,0 +1,11 @@
+{
+  "id": "guardrails",
+  "title": "4 Защита от угроз",
+  "description": "Модуль посвящен изучению основных техник защиты от угроз на языковые модели и RAG-системы. Студенты научатся защищаться от атак, используя различные методы и инструменты.",
+  "is_active": true,
+  "assignment_ids": [
+    "system_prompt_extraction",
+    "knowledge_base_secret_extraction",
+    "token_limit_bypass"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "threat_modelling",
+  "title": "3 Моделирование угроз",
+  "description": "Модуль посвящен подходам к моделированию угроз систем на основе языковых моделей. Студенты научатся моделировать угрозы, используя различные методы и инструменты.",
+  "is_active": true,
+  "assignment_ids": [
+    "system_prompt_extraction",
+    "knowledge_base_secret_extraction",
+    "token_limit_bypass"
+  ]
+}

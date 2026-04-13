@@ -1,0 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 6%;
+    --foreground: 180 100% 95%;
+
+    --card: 222 47% 9%;
+    --card-foreground: 180 100% 95%;
+
+    --popover: 222 47% 9%;
+    --popover-foreground: 180 100% 95%;
+
+    --primary: 174 84% 45%;
+    --primary-foreground: 222 47% 6%;
+
+    --secondary: 280 100% 50%;
+    --secondary-foreground: 180 100% 95%;
+
+    --muted: 222 40% 15%;
+    --muted-foreground: 180 30% 60%;
+
+    --accent: 195 100% 50%;
+    --accent-foreground: 222 47% 6%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 180 100% 95%;
+
+    --border: 180 30% 20%;
+    --input: 222 40% 15%;
+    --ring: 174 84% 45%;
+
+    --radius: 0.5rem;
+
+    --neon-color: hsl(174, 84%, 45%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+    background-image: 
+      radial-gradient(ellipse at top, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom, rgba(191, 0, 255, 0.05) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.5);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.7);
+  }
+
+  /* Selection */
+  ::selection {
+    background: hsl(var(--primary) / 0.3);
+    color: hsl(var(--primary-foreground));
+  }
+
+  /* Selection for primary background elements (user messages) */
+  .bg-primary ::selection,
+  .bg-primary::selection {
+    background: hsl(var(--background) / 0.5);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer components {
+  .cyber-border {
+    @apply border border-primary/30 relative;
+  }
+
+  .cyber-border::before {
+    content: '';
+    @apply absolute -inset-px pointer-events-none;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.3) 0%,
+      transparent 50%,
+      hsl(var(--secondary) / 0.3) 100%
+    );
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask-composite: xor;
+    padding: 1px;
+    border-radius: inherit;
+  }
+
+  .cyber-glow {
+    box-shadow: 
+      0 0 10px hsl(var(--primary) / 0.2),
+      0 0 20px hsl(var(--primary) / 0.1),
+      inset 0 0 20px hsl(var(--primary) / 0.05);
+  }
+
+  .neon-text {
+    text-shadow: 
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      0 0 20px currentColor;
+  }
+
+  .glass {
+    @apply bg-card/80 backdrop-blur-sm;
+  }
+
+  .scan-line {
+    @apply absolute inset-0 pointer-events-none overflow-hidden;
+  }
+
+  .scan-line::after {
+    content: '';
+    @apply absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent;
+    animation: scan-line 3s linear infinite;
+  }
+
+  .stagger-fade-in > * {
+    @apply opacity-0 animate-fade-in;
+  }
+
+  .stagger-fade-in > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-fade-in > *:nth-child(2) { animation-delay: 50ms; }
+  .stagger-fade-in > *:nth-child(3) { animation-delay: 100ms; }
+  .stagger-fade-in > *:nth-child(4) { animation-delay: 150ms; }
+  .stagger-fade-in > *:nth-child(5) { animation-delay: 200ms; }
+  .stagger-fade-in > *:nth-child(6) { animation-delay: 250ms; }
+  .stagger-fade-in > *:nth-child(7) { animation-delay: 300ms; }
+  .stagger-fade-in > *:nth-child(8) { animation-delay: 350ms; }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Force text selection in chat messages */
+  .selectable-text {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
+    cursor: text;
+  }
+
+  .selectable-text * {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
+  }
+}
+

@@ -1,0 +1,18 @@
+{
+  "timestamp": "20260111_151654",
+  "tutor_agent": {
+    "total_cases": 10,
+    "stage_accuracy": 0.3,
+    "tool_selection_accuracy": 0.9,
+    "guiding_questions_usage_accuracy": 0.6,
+    "theory_usage_rate": 1.0
+  },
+  "evaluator_agent": {
+    "total_cases": 10,
+    "stage_accuracy": 0.3,
+    "validator_selection_accuracy": 0.8,
+    "score_accuracy": 0.2,
+    "llm_analysis_usage_rate": 0.8,
+    "theory_usage_rate": 0.0
+  }
+}

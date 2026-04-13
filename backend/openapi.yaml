@@ -1,0 +1,1415 @@
+openapi: 3.0.3
+info:
+  title: WindChaserSecurity API
+  description: |
+    API для образовательной платформы по информационной безопасности WindChaserSecurity.
+    
+    Платформа включает:
+    - Управление пользователями и аутентификацию
+    - Образовательные модули и задания
+    - Отслеживание прогресса обучения
+    - Чат с AI-ассистентами
+  version: 1.0.0
+  contact:
+    name: WindChaserSecurity Team
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.windchaser.security
+    description: Production server
+
+tags:
+  - name: Auth
+    description: Аутентификация и управление сессиями
+  - name: Users
+    description: Управление пользователями
+  - name: Modules
+    description: Образовательные модули
+  - name: Missions
+    description: Миссии внутри модулей
+  - name: Flows
+    description: Учебные потоки
+  - name: Lessons
+    description: Уроки внутри потоков
+  - name: Tasks
+    description: Задания и упражнения
+  - name: Progress
+    description: Прогресс пользователей
+  - name: Chat
+    description: Чат-сессии и сообщения
+  - name: Assistants
+    description: Профили AI-ассистентов
+
+paths:
+  # ==================== Auth ====================
+  /api/me:
+    get:
+      tags: [Auth]
+      summary: Получить текущего пользователя
+      description: Возвращает информацию о текущем аутентифицированном пользователе
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithRole'
+        '401':
+          description: Не аутентифицирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/login:
+    post:
+      tags: [Auth]
+      summary: Вход в систему
+      description: Аутентификация пользователя по ID
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserWithRole'
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Users ====================
+  /api/users:
+    get:
+      tags: [Users]
+      summary: Получить список пользователей
+      description: Возвращает список всех активных пользователей
+      operationId: getUsers
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserWithRole'
+
+  # ==================== Modules ====================
+  /api/modules:
+    get:
+      tags: [Modules]
+      summary: Получить все модули
+      description: Возвращает список всех активных образовательных модулей
+      operationId: getModules
+      responses:
+        '200':
+          description: Список модулей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Module'
+
+    post:
+      tags: [Modules]
+      summary: Создать модуль
+      description: Создаёт новый образовательный модуль
+      operationId: createModule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModuleRequest'
+      responses:
+        '201':
+          description: Модуль создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Module'
+
+  /api/modules/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ModuleId'
+
+    get:
+      tags: [Modules]
+      summary: Получить модуль по ID
+      operationId: getModuleById
+      responses:
+        '200':
+          description: Модуль найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Module'
+        '404':
+          description: Модуль не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags: [Modules]
+      summary: Обновить модуль
+      operationId: updateModule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateModuleRequest'
+      responses:
+        '200':
+          description: Модуль обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Module'
+        '404':
+          description: Модуль не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Modules]
+      summary: Удалить модуль
+      description: Мягкое удаление модуля (soft delete)
+      operationId: deleteModule
+      responses:
+        '204':
+          description: Модуль удалён
+        '404':
+          description: Модуль не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Missions ====================
+  /api/missions:
+    get:
+      tags: [Missions]
+      summary: Получить миссии по модулю
+      operationId: getMissionsByModuleId
+      parameters:
+        - name: module_id
+          in: query
+          required: true
+          description: ID модуля
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список миссий
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Mission'
+        '400':
+          description: module_id обязателен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Flows ====================
+  /api/flows:
+    get:
+      tags: [Flows]
+      summary: Получить потоки
+      description: Возвращает все потоки или фильтрует по module_id
+      operationId: getFlows
+      parameters:
+        - name: module_id
+          in: query
+          required: false
+          description: ID модуля для фильтрации
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список потоков
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Flow'
+
+  /api/flows/{id}:
+    parameters:
+      - $ref: '#/components/parameters/FlowId'
+
+    get:
+      tags: [Flows]
+      summary: Получить поток по ID
+      operationId: getFlowById
+      responses:
+        '200':
+          description: Поток найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flow'
+        '404':
+          description: Поток не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Lessons ====================
+  /api/lessons:
+    get:
+      tags: [Lessons]
+      summary: Получить уроки по потоку
+      operationId: getLessonsByFlowId
+      parameters:
+        - name: flow_id
+          in: query
+          required: true
+          description: ID потока
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список уроков
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Lesson'
+        '400':
+          description: flow_id обязателен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Tasks ====================
+  /api/tasks:
+    get:
+      tags: [Tasks]
+      summary: Получить задания
+      description: Возвращает все задания или фильтрует по module_id и flow_id
+      operationId: getTasks
+      parameters:
+        - name: module_id
+          in: query
+          required: false
+          description: ID модуля для фильтрации
+          schema:
+            type: string
+            format: uuid
+        - name: flow_id
+          in: query
+          required: false
+          description: ID потока для дополнительной фильтрации
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список заданий
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+
+    post:
+      tags: [Tasks]
+      summary: Создать задание
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Задание создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+
+  /api/tasks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+
+    get:
+      tags: [Tasks]
+      summary: Получить задание по ID
+      operationId: getTaskById
+      responses:
+        '200':
+          description: Задание найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Задание не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags: [Tasks]
+      summary: Обновить задание
+      operationId: updateTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Задание обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Задание не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Tasks]
+      summary: Удалить задание
+      operationId: deleteTask
+      responses:
+        '204':
+          description: Задание удалено
+        '404':
+          description: Задание не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Progress ====================
+  /api/user_task_progress:
+    get:
+      tags: [Progress]
+      summary: Получить прогресс пользователя
+      operationId: getUserProgress
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          description: ID пользователя
+          schema:
+            type: string
+            format: uuid
+        - name: module_id
+          in: query
+          required: false
+          description: ID модуля для фильтрации
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Прогресс пользователя
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserTaskProgress'
+        '400':
+          description: user_id обязателен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Progress]
+      summary: Создать запись прогресса
+      operationId: createProgress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProgressRequest'
+      responses:
+        '201':
+          description: Прогресс создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserTaskProgress'
+
+  /api/user_task_progress/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ProgressId'
+
+    patch:
+      tags: [Progress]
+      summary: Обновить прогресс
+      operationId: updateProgress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProgressRequest'
+      responses:
+        '200':
+          description: Прогресс обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserTaskProgress'
+        '404':
+          description: Запись прогресса не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Chat Sessions ====================
+  /api/chat_sessions:
+    get:
+      tags: [Chat]
+      summary: Получить чат-сессии пользователя
+      operationId: getChatSessions
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          description: ID пользователя
+          schema:
+            type: string
+            format: uuid
+        - name: module_id
+          in: query
+          required: false
+          description: ID модуля для фильтрации
+          schema:
+            type: string
+            format: uuid
+        - name: flow_id
+          in: query
+          required: false
+          description: ID потока для фильтрации
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список чат-сессий
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatSession'
+        '400':
+          description: user_id обязателен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Chat]
+      summary: Создать чат-сессию
+      description: |
+        Создаёт новую чат-сессию. Если активная сессия уже существует 
+        для данного пользователя, модуля и потока — возвращает её.
+      operationId: createChatSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChatSessionRequest'
+      responses:
+        '200':
+          description: Возвращена существующая активная сессия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+        '201':
+          description: Создана новая сессия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+
+  /api/chat_sessions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ChatSessionId'
+
+    patch:
+      tags: [Chat]
+      summary: Завершить чат-сессию
+      description: Устанавливает ended_at для завершения сессии
+      operationId: endChatSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ended_at
+              properties:
+                ended_at:
+                  type: string
+                  format: date-time
+                  description: Время завершения сессии
+      responses:
+        '200':
+          description: Сессия завершена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+        '400':
+          description: Некорректный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Сессия не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Messages ====================
+  /api/messages:
+    get:
+      tags: [Chat]
+      summary: Получить сообщения чат-сессии
+      operationId: getMessages
+      parameters:
+        - name: chat_session_id
+          in: query
+          required: true
+          description: ID чат-сессии
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список сообщений
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '400':
+          description: chat_session_id обязателен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Chat]
+      summary: Отправить сообщение
+      description: |
+        Отправляет сообщение в чат. Если sender_type='user', 
+        автоматически генерируется ответ ассистента.
+      operationId: sendMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessageRequest'
+      responses:
+        '201':
+          description: Сообщение отправлено
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Message'
+                  - type: array
+                    description: При sender_type='user' возвращается массив [userMessage, assistantMessage]
+                    items:
+                      $ref: '#/components/schemas/Message'
+
+  # ==================== Assistant Profiles ====================
+  /api/assistant_profiles:
+    get:
+      tags: [Assistants]
+      summary: Получить профили ассистентов
+      description: Возвращает все профили или фильтрует по module_id
+      operationId: getAssistantProfiles
+      parameters:
+        - name: module_id
+          in: query
+          required: false
+          description: ID модуля для фильтрации
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список профилей ассистентов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AssistantProfile'
+
+    post:
+      tags: [Assistants]
+      summary: Создать профиль ассистента
+      operationId: createAssistantProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssistantProfileRequest'
+      responses:
+        '201':
+          description: Профиль создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantProfile'
+
+  /api/assistant_profiles/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AssistantProfileId'
+
+    get:
+      tags: [Assistants]
+      summary: Получить профиль ассистента по ID
+      operationId: getAssistantProfileById
+      responses:
+        '200':
+          description: Профиль найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantProfile'
+        '404':
+          description: Профиль не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags: [Assistants]
+      summary: Обновить профиль ассистента
+      operationId: updateAssistantProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAssistantProfileRequest'
+      responses:
+        '200':
+          description: Профиль обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantProfile'
+        '404':
+          description: Профиль не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Assistants]
+      summary: Удалить профиль ассистента
+      operationId: deleteAssistantProfile
+      responses:
+        '204':
+          description: Профиль удалён
+        '404':
+          description: Профиль не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  # ==================== Parameters ====================
+  parameters:
+    ModuleId:
+      name: id
+      in: path
+      required: true
+      description: ID модуля
+      schema:
+        type: string
+        format: uuid
+
+    FlowId:
+      name: id
+      in: path
+      required: true
+      description: ID потока
+      schema:
+        type: string
+        format: uuid
+
+    TaskId:
+      name: id
+      in: path
+      required: true
+      description: ID задания
+      schema:
+        type: string
+        format: uuid
+
+    ProgressId:
+      name: id
+      in: path
+      required: true
+      description: ID записи прогресса
+      schema:
+        type: string
+        format: uuid
+
+    ChatSessionId:
+      name: id
+      in: path
+      required: true
+      description: ID чат-сессии
+      schema:
+        type: string
+        format: uuid
+
+    AssistantProfileId:
+      name: id
+      in: path
+      required: true
+      description: ID профиля ассистента
+      schema:
+        type: string
+        format: uuid
+
+  # ==================== Schemas ====================
+  schemas:
+    # ---------- Base Entity Fields ----------
+    BaseEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Дата удаления (soft delete)
+
+    # ---------- Error ----------
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Сообщение об ошибке
+      example:
+        message: "Resource not found"
+
+    # ---------- Role ----------
+    Role:
+      allOf:
+        - $ref: '#/components/schemas/BaseEntity'
+        - type: object
+          required:
+            - name
+          properties:
+            name:
+              type: string
+              description: Название роли
+              example: "admin"
+
+    # ---------- User ----------
+    User:
+      allOf:
+        - $ref: '#/components/schemas/BaseEntity'
+        - type: object
+          required:
+            - role_id
+            - username
+            - email
+          properties:
+            role_id:
+              type: string
+              format: uuid
+              description: ID роли пользователя
+            username:
+              type: string
+              description: Имя пользователя
+              example: "john_doe"
+            email:
+              type: string
+              format: email
+              description: Email пользователя
+              example: "john@example.com"
+            langflow_user_id:
+              type: string
+              nullable: true
+              description: ID пользователя в LangFlow
+            langflow_folder_id:
+              type: string
+              nullable: true
+              description: ID папки в LangFlow
+
+    UserWithRole:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          required:
+            - role
+          properties:
+            role:
+              $ref: '#/components/schemas/Role'
+
+    # ---------- Module ----------
+    Module:
+      allOf:
+        - $ref: '#/components/schemas/BaseEntity'
+        - type: object
+          required:
+            - title
+            - description
+            - is_active
+          properties:
+            title:
+              type: string
+              description: Название модуля
+              example: "Основы информационной безопасности"
+            description:
+              type: string
+              description: Описание модуля
+              example: "Введение в базовые концепции ИБ"
+            flow_id:
+              type: string
+              format: uuid
+              nullable: true
+              description: ID связанного потока
+            is_active:
+              type: boolean
+              description: Активен ли модуль
+              default: true
+
+    CreateModuleRequest:
+      type: object
+      required:
+        - title
+        - description
+      properties:
+        title:
+          type: string
+          description: Название модуля
+        description:
+          type: string
+          description: Описание модуля
+        flow_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_active:
+          type: boolean
+          default: true
+
+    UpdateModuleRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        flow_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_active:
+          type: boolean
+
+    # ---------- Mission ----------
+    Mission:
+      allOf:
+        - $ref: '#/components/schemas/BaseEntity'
+        - type: object
+          required:
+            - module_id
+            - code
+            - title
+            - description
+          properties:
+            module_id:
+              type: string
+              format: uuid
+              description: ID модуля
+            code:
+              type: string
+              description: Код миссии
+              example: "MISSION_001"
+            title:
+              type: string
+              description: Название миссии
+            description:
+              type: string
+              description: Описание миссии
+
+    # ---------- Flow ----------
+    Flow:
+      allOf:
+        - $ref: '#/components/schemas/BaseEntity'
+        - type: object
+          required:
+            - title
+            - description
+          properties:
+            module_branch_id:
+              type: string
+              format: uuid
+              nullable: true
+              description: ID ветки модуля
+            langflow_flow_id:
+              type: string
+              nullable: true
+              description: ID потока в LangFlow
+            title:
+              type: string
+              description: Название потока
+            description:
+              type: string
+              description: Описание потока
+
+    # ---------- Lesson ----------
+    Lesson:
+      allOf:
+        - $ref: '#/components/schemas/BaseEntity'
+        - type: object
+          required:
+            - flow_id
+            - type
+            - title
+          properties:
+            flow_id:
+              type: string
+              format: uuid
+              description: ID потока
+            type:
+              type: string
+              description: Тип урока
+              example: "theory"
+            title:
+              type: string
+              description: Название урока
+
+    # ---------- Task ----------
+    Task:
+      allOf:
+        - $ref: '#/components/schemas/BaseEntity'
+        - type: object
+          required:
+            - module_id
+            - title
+            - type
+            - description
+            - max_score
+          properties:
+            module_id:
+              type: string
+              format: uuid
+              description: ID модуля
+            flow_id:
+              type: string
+              format: uuid
+              nullable: true
+              description: ID потока
+            title:
+              type: string
+              description: Название задания
+              example: "Анализ уязвимостей"
+            type:
+              type: string
+              description: Тип задания
+              example: "practical"
+            description:
+              type: string
+              description: Описание задания
+            max_score:
+              type: number
+              description: Максимальный балл
+              example: 100
+            achievement_badge:
+              type: string
+              nullable: true
+              description: Значок достижения
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - module_id
+        - title
+        - type
+        - description
+        - max_score
+      properties:
+        module_id:
+          type: string
+          format: uuid
+        flow_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        max_score:
+          type: number
+        achievement_badge:
+          type: string
+          nullable: true
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        max_score:
+          type: number
+        achievement_badge:
+          type: string
+          nullable: true
+
+    # ---------- UserTaskProgress ----------
+    UserTaskProgress:
+      allOf:
+        - $ref: '#/components/schemas/BaseEntity'
+        - type: object
+          required:
+            - user_id
+            - task_id
+            - status
+          properties:
+            user_id:
+              type: string
+              format: uuid
+              description: ID пользователя
+            task_id:
+              type: string
+              format: uuid
+              description: ID задания
+            status:
+              type: string
+              enum:
+                - not_started
+                - in_progress
+                - completed
+                - failed
+              description: Статус выполнения
+            score:
+              type: number
+              nullable: true
+              description: Набранный балл
+            started_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Дата начала
+            completed_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Дата завершения
+
+    CreateProgressRequest:
+      type: object
+      required:
+        - user_id
+        - task_id
+        - status
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        task_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - not_started
+            - in_progress
+            - completed
+            - failed
+        score:
+          type: number
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    UpdateProgressRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - not_started
+            - in_progress
+            - completed
+            - failed
+        score:
+          type: number
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ---------- AssistantProfile ----------
+    AssistantProfile:
+      allOf:
+        - $ref: '#/components/schemas/BaseEntity'
+        - type: object
+          required:
+            - module_id
+            - name
+            - system_prompt
+          properties:
+            module_id:
+              type: string
+              format: uuid
+              description: ID модуля
+            name:
+              type: string
+              description: Имя ассистента
+              example: "SecurityBot"
+            system_prompt:
+              type: string
+              description: Системный промпт для AI
+            capabilities_json:
+              type: object
+              nullable: true
+              additionalProperties: true
+              description: JSON с возможностями ассистента
+
+    CreateAssistantProfileRequest:
+      type: object
+      required:
+        - module_id
+        - name
+        - system_prompt
+      properties:
+        module_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        system_prompt:
+          type: string
+        capabilities_json:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    UpdateAssistantProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        system_prompt:
+          type: string
+        capabilities_json:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    # ---------- ChatSession ----------
+    ChatSession:
+      allOf:
+        - $ref: '#/components/schemas/BaseEntity'
+        - type: object
+          required:
+            - user_id
+            - module_id
+            - started_at
+          properties:
+            user_id:
+              type: string
+              format: uuid
+              description: ID пользователя
+            module_id:
+              type: string
+              format: uuid
+              description: ID модуля
+            flow_id:
+              type: string
+              format: uuid
+              nullable: true
+              description: ID потока
+            started_at:
+              type: string
+              format: date-time
+              description: Время начала сессии
+            ended_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Время завершения сессии
+
+    CreateChatSessionRequest:
+      type: object
+      required:
+        - user_id
+        - module_id
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        module_id:
+          type: string
+          format: uuid
+        flow_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    # ---------- Message ----------
+    Message:
+      type: object
+      required:
+        - id
+        - chat_session_id
+        - sender_type
+        - content
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор
+        chat_session_id:
+          type: string
+          format: uuid
+          description: ID чат-сессии
+        sender_type:
+          type: string
+          enum:
+            - user
+            - assistant
+            - system
+          description: Тип отправителя
+        content:
+          type: string
+          description: Содержимое сообщения
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата обновления
+
+    CreateMessageRequest:
+      type: object
+      required:
+        - chat_session_id
+        - sender_type
+        - content
+      properties:
+        chat_session_id:
+          type: string
+          format: uuid
+        sender_type:
+          type: string
+          enum:
+            - user
+            - assistant
+            - system
+        content:
+          type: string
+
+    # ---------- Login ----------
+    LoginRequest:
+      type: object
+      required:
+        - user_id
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: ID пользователя для входа
+
